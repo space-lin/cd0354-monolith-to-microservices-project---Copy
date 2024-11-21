@@ -1,76 +1,94 @@
 version: 2.1
 
-# Define CircleCI orbs to use reusable configuration
 orbs:
-  node: circleci/node@5
-  docker: circleci/docker@2.1.0  # Docker orb để hỗ trợ Docker build và push
+  node: circleci/node@5.0
+  docker: circleci/docker@2.1.0
 
 executors:
-  # Executor for building Docker images
   docker-executor:
     docker:
-      - image: cimg/docker:20.10  # CircleCI Docker image
-    working_directory: ~/project
+      - image: cimg/docker:20.10
+    working_directory: ~/repo
 
 jobs:
-  build:
+  build-frontend:
     executor: docker-executor
     steps:
       - checkout
-      # Build Docker images for the services
+      - node/install-packages:
+          pkg-manager: npm
       - run:
-          name: Build udagram-api-user image
+          name: Build frontend
           command: |
-            docker build -t $DOCKERHUB_USERNAME/udagram-api-user:latest ./udagram-api-user
+            cd udagram-frontend
+            npm run build
       - run:
-          name: Build udagram-api-feed image
+          name: Build Docker image for frontend
           command: |
-            docker build -t $DOCKERHUB_USERNAME/udagram-api-feed:latest ./udagram-api-feed
+            docker build -t $DOCKER_USERNAME/udagram-frontend:latest ./udagram-frontend
       - run:
-          name: Build udagram-frontend image
+          name: Push frontend Docker image to DockerHub
           command: |
-            docker build -t $DOCKERHUB_USERNAME/udagram-frontend:latest ./udagram-frontend
-      - run:
-          name: Build udagram-reverseproxy image
-          command: |
-            docker build -t $DOCKERHUB_USERNAME/udagram-reverseproxy:latest ./udagram-reverseproxy
+            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+            docker push $DOCKER_USERNAME/udagram-frontend:latest
 
-  push:
+  build-backend-user:
     executor: docker-executor
     steps:
       - checkout
-      # Setup Docker remote environment to enable pushing to DockerHub
-      - setup_remote_docker:
-          version: 20.10.7
-          docker_layer_caching: true
-      # Login to DockerHub
+      - node/install-packages:
+          pkg-manager: npm
       - run:
-          name: Docker Login
+          name: Build Docker image for backend user
           command: |
-            echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-      # Push images to DockerHub
+            docker build -t $DOCKER_USERNAME/udagram-api-user:latest ./udagram-api-user
       - run:
-          name: Push udagram-api-user image
+          name: Push backend user Docker image to DockerHub
           command: |
-            docker push $DOCKERHUB_USERNAME/udagram-api-user:latest
+            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+            docker push $DOCKER_USERNAME/udagram-api-user:latest
+
+  build-backend-feed:
+    executor: docker-executor
+    steps:
+      - checkout
+      - node/install-packages:
+          pkg-manager: npm
       - run:
-          name: Push udagram-api-feed image
+          name: Build Docker image for backend feed
           command: |
-            docker push $DOCKERHUB_USERNAME/udagram-api-feed:latest
+            docker build -t $DOCKER_USERNAME/udagram-api-feed:latest ./udagram-api-feed
       - run:
-          name: Push udagram-frontend image
+          name: Push backend feed Docker image to DockerHub
           command: |
-            docker push $DOCKERHUB_USERNAME/udagram-frontend:latest
+            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+            docker push $DOCKER_USERNAME/udagram-api-feed:latest
+
+  build-reverseproxy:
+    executor: docker-executor
+    steps:
+      - checkout
       - run:
-          name: Push udagram-reverseproxy image
+          name: Build Docker image for reverseproxy
           command: |
-            docker push $DOCKERHUB_USERNAME/udagram-reverseproxy:latest
+            docker build -t $DOCKER_USERNAME/reverseproxy:latest ./udagram-reverseproxy
+      - run:
+          name: Push reverseproxy Docker image to DockerHub
+          command: |
+            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+            docker push $DOCKER_USERNAME/reverseproxy:latest
 
 workflows:
   version: 2
   build_and_deploy:
     jobs:
-      - build
-      - push:
+      - build-frontend
+      - build-backend-user:
           requires:
-            - build
+            - build-frontend
+      - build-backend-feed:
+          requires:
+            - build-backend-user
+      - build-reverseproxy:
+          requires:
+            - build-backend-feed
