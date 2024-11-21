@@ -3,7 +3,7 @@ version: 2.1
 executors:
   docker-executor:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/base:stable  # Đây là image chính để chạy các lệnh trong môi trường CircleCI
     working_directory: ~/project
 
 jobs:
@@ -12,12 +12,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          version: 20.10.14
-      - run:
-          name: Install Docker CLI
-          command: |
-            sudo apt-get update
-            sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+          # Bỏ qua việc chỉ định version ở đây
       - run:
           name: Build udagram-api-user image
           command: |
@@ -58,7 +53,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          version: 20.10.14
+          # Không cần chỉ định phiên bản Docker nữa
       - run:
           name: Docker Login
           command: |
