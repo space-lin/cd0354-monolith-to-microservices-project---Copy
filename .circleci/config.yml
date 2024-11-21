@@ -1,94 +1,73 @@
 version: 2.1
 
-orbs:
-  node: circleci/node@5.0
-  docker: circleci/docker@2.1.0
-
 executors:
   docker-executor:
     docker:
-      - image: cimg/docker:20.10
+      - image: cimg/docker:20.10 # Base image used for the build process
     working_directory: ~/repo
 
+orbs:
+  node: circleci/node@5  # Node orb to help with node.js jobs
+
 jobs:
-  build-frontend:
+  build:
     executor: docker-executor
     steps:
+      # Checkout the code from your repository
       - checkout
-      - node/install-packages:
-          pkg-manager: npm
-      - run:
-          name: Build frontend
-          command: |
-            cd udagram-frontend
-            npm run build
-      - run:
-          name: Build Docker image for frontend
-          command: |
-            docker build -t $DOCKER_USERNAME/udagram-frontend:latest ./udagram-frontend
-      - run:
-          name: Push frontend Docker image to DockerHub
-          command: |
-            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-            docker push $DOCKER_USERNAME/udagram-frontend:latest
 
-  build-backend-user:
-    executor: docker-executor
-    steps:
-      - checkout
-      - node/install-packages:
-          pkg-manager: npm
+      # Set up DockerHub authentication to allow pushing images
       - run:
-          name: Build Docker image for backend user
-          command: |
-            docker build -t $DOCKER_USERNAME/udagram-api-user:latest ./udagram-api-user
-      - run:
-          name: Push backend user Docker image to DockerHub
-          command: |
-            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-            docker push $DOCKER_USERNAME/udagram-api-user:latest
+          name: Log into DockerHub
+          command: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
-  build-backend-feed:
-    executor: docker-executor
-    steps:
-      - checkout
-      - node/install-packages:
-          pkg-manager: npm
+      # Install dependencies (for Node.js project)
       - run:
-          name: Build Docker image for backend feed
-          command: |
-            docker build -t $DOCKER_USERNAME/udagram-api-feed:latest ./udagram-api-feed
-      - run:
-          name: Push backend feed Docker image to DockerHub
-          command: |
-            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-            docker push $DOCKER_USERNAME/udagram-api-feed:latest
+          name: Install dependencies
+          command: npm install
 
-  build-reverseproxy:
-    executor: docker-executor
+      # Build Docker images for each service (assuming services like udagram-api-feed, udagram-frontend, etc.)
+      - run:
+          name: Build Docker images
+          command: |
+            docker build -t udagram-api-feed ./udagram-api-feed
+            docker build -t udagram-api-user ./udagram-api-user
+            docker build -t udagram-frontend ./udagram-frontend
+            docker build -t reverseproxy ./reverseproxy
+
+      # Tag Docker images with version and your DockerHub username
+      - run:
+          name: Tag Docker images
+          command: |
+            docker tag udagram-api-feed "$DOCKER_USERNAME/udagram-api-feed:v1"
+            docker tag udagram-api-user "$DOCKER_USERNAME/udagram-api-user:v1"
+            docker tag udagram-frontend "$DOCKER_USERNAME/udagram-frontend:v1"
+            docker tag reverseproxy "$DOCKER_USERNAME/reverseproxy:v1"
+
+      # Push Docker images to DockerHub
+      - run:
+          name: Push Docker images
+          command: |
+            docker push "$DOCKER_USERNAME/udagram-api-feed:v1"
+            docker push "$DOCKER_USERNAME/udagram-api-user:v1"
+            docker push "$DOCKER_USERNAME/udagram-frontend:v1"
+            docker push "$DOCKER_USERNAME/reverseproxy:v1"
+
+  # Example of a deploy job, you can add steps to deploy your app
+  deploy:
+    docker:
+      - image: cimg/docker:20.10 # Same image for deploy process
     steps:
-      - checkout
+      # Deployment script or any other deploy tasks
       - run:
-          name: Build Docker image for reverseproxy
-          command: |
-            docker build -t $DOCKER_USERNAME/reverseproxy:latest ./udagram-reverseproxy
-      - run:
-          name: Push reverseproxy Docker image to DockerHub
-          command: |
-            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-            docker push $DOCKER_USERNAME/reverseproxy:latest
+          name: Deploy to Kubernetes or Cloud
+          command: "./deploy.sh"
 
 workflows:
   version: 2
   build_and_deploy:
     jobs:
-      - build-frontend
-      - build-backend-user:
+      - build
+      - deploy:
           requires:
-            - build-frontend
-      - build-backend-feed:
-          requires:
-            - build-backend-user
-      - build-reverseproxy:
-          requires:
-            - build-backend-feed
+            - build
