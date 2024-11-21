@@ -1,58 +1,90 @@
-# This config was automatically generated from your source code
-# Stacks detected: deps:node:udagram-frontend
 version: 2.1
-orbs:
-  node: circleci/node@5
-jobs:
-  test-node:
-    # Install node dependencies and run tests
-    executor: node/default
-    working_directory: ~/project/udagram-frontend
-    steps:
-      - checkout:
-          path: ~/project
-      - node/install-packages:
-          pkg-manager: npm
-      - run:
-          name: Run tests
-          command: npm test --passWithNoTests
-  build-node:
-    # Build node project
-    executor: node/default
-    working_directory: ~/project/udagram-frontend
-    steps:
-      - checkout:
-          path: ~/project
-      - node/install-packages:
-          pkg-manager: npm
-      - run:
-          command: npm run build
-      - run:
-          name: Create the ~/artifacts directory if it doesn't exist
-          command: mkdir -p ~/artifacts
-      # Copy output to artifacts dir
-      - run:
-          name: Copy artifacts
-          command: cp -R build dist public .output .next .docusaurus ~/artifacts 2>/dev/null || true
-      - store_artifacts:
-          path: ~/artifacts
-          destination: node-build
-  deploy:
-    # This is an example deploy job, not actually used by the workflow
+
+executors:
+  docker-executor:
     docker:
       - image: cimg/base:stable
+    working_directory: ~/project
+
+jobs:
+  build:
+    executor: docker-executor
     steps:
-      # Replace this with steps to deploy to users
+      - checkout
+      - setup_remote_docker:
+          version: 20.10.14
       - run:
-          name: deploy
-          command: '#e.g. ./deploy.sh'
+          name: Install Docker CLI
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+      - run:
+          name: Build udagram-api-user image
+          command: |
+            docker build \
+              --build-arg POSTGRES_USERNAME=$POSTGRES_USERNAME \
+              --build-arg POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
+              --build-arg POSTGRES_HOST=$POSTGRES_HOST \
+              --build-arg POSTGRES_DB=$POSTGRES_DB \
+              --build-arg AWS_REGION=$AWS_REGION \
+              --build-arg AWS_PROFILE=$AWS_PROFILE \
+              --build-arg AWS_BUCKET=$AWS_BUCKET \
+              --build-arg JWT_SECRET=$JWT_SECRET \
+              -t $DOCKERHUB_USERNAME/udagram-api-user:latest ./udagram-api-user
+      - run:
+          name: Build udagram-api-feed image
+          command: |
+            docker build \
+              --build-arg POSTGRES_USERNAME=$POSTGRES_USERNAME \
+              --build-arg POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
+              --build-arg POSTGRES_HOST=$POSTGRES_HOST \
+              --build-arg POSTGRES_DB=$POSTGRES_DB \
+              --build-arg AWS_REGION=$AWS_REGION \
+              --build-arg AWS_PROFILE=$AWS_PROFILE \
+              --build-arg AWS_BUCKET=$AWS_BUCKET \
+              --build-arg JWT_SECRET=$JWT_SECRET \
+              -t $DOCKERHUB_USERNAME/udagram-api-feed:latest ./udagram-api-feed
+      - run:
+          name: Build udagram-frontend image
+          command: |
+            docker build -t $DOCKERHUB_USERNAME/udagram-frontend:latest ./udagram-frontend
+      - run:
+          name: Build udagram-reverseproxy image
+          command: |
+            docker build -t $DOCKERHUB_USERNAME/udagram-reverseproxy:latest ./udagram-reverseproxy
+
+  push:
+    executor: docker-executor
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 20.10.14
+      - run:
+          name: Docker Login
+          command: |
+            echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+      - run:
+          name: Push udagram-api-user image
+          command: |
+            docker push $DOCKERHUB_USERNAME/udagram-api-user:latest
+      - run:
+          name: Push udagram-api-feed image
+          command: |
+            docker push $DOCKERHUB_USERNAME/udagram-api-feed:latest
+      - run:
+          name: Push udagram-frontend image
+          command: |
+            docker push $DOCKERHUB_USERNAME/udagram-frontend:latest
+      - run:
+          name: Push udagram-reverseproxy image
+          command: |
+            docker push $DOCKERHUB_USERNAME/udagram-reverseproxy:latest
+
 workflows:
-  build-and-test:
+  version: 2
+  build_and_push:
     jobs:
-      - test-node
-      - build-node:
+      - build
+      - push:
           requires:
-            - test-node
-    # - deploy:
-    #     requires:
-    #       - build-node
+            - build
