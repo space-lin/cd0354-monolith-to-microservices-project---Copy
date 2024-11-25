@@ -5,8 +5,8 @@ executors:
     docker:
       - image: cimg/node:lts
         auth:
-          username: $DOCKER_USERNAME
-          password: $DOCKER_PASSWORD
+          username: $DOCKERHUB_USERNAME
+          password: $DOCKERHUB_PASSWORD
     working_directory: ~/project
 
 jobs:
@@ -27,20 +27,20 @@ jobs:
       - run:
           name: Tag Docker Images
           command: |
-            docker tag udagram-api-feed $DOCKER_USERNAME/udagram-api-feed:v1
-            docker tag udagram-api-user $DOCKER_USERNAME/udagram-api-user:v1
-            docker tag udagram-frontend $DOCKER_USERNAME/udagram-frontend:v1
-            docker tag reverseproxy $DOCKER_USERNAME/reverseproxy:v1
+            docker tag udagram-api-feed $DOCKERHUB_USERNAME/udagram-api-feed:v1
+            docker tag udagram-api-user $DOCKERHUB_USERNAME/udagram-api-user:v1
+            docker tag udagram-frontend $DOCKERHUB_USERNAME/udagram-frontend:v1
+            docker tag reverseproxy $DOCKERHUB_USERNAME/reverseproxy:v1
       - run:
           name: Login to DockerHub
-          command: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+          command: echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
       - run:
           name: Push Docker Images to DockerHub
           command: |
-            docker push $DOCKER_USERNAME/udagram-api-feed:v1
-            docker push $DOCKER_USERNAME/udagram-api-user:v1
-            docker push $DOCKER_USERNAME/udagram-frontend:v1
-            docker push $DOCKER_USERNAME/reverseproxy:v1
+            docker push $DOCKERHUB_USERNAME/udagram-api-feed:v1
+            docker push $DOCKERHUB_USERNAME/udagram-api-user:v1
+            docker push $DOCKERHUB_USERNAME/udagram-frontend:v1
+            docker push $DOCKERHUB_USERNAME/reverseproxy:v1
 
 workflows:
   version: 2
