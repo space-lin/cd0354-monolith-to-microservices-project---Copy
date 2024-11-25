@@ -10,7 +10,7 @@ jobs:
       - run:
           name: Build and push Docker images
           command: |
-            echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USERNAME --password-stdin
+            echo "$DOCKERHUB_PASSWORD" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
             docker build -t $DOCKERHUB_USERNAME/udagram-reverseproxy:${CIRCLE_SHA1} ./udagram-reverseproxy
             docker build -t $DOCKERHUB_USERNAME/udagram-api-user:${CIRCLE_SHA1} ./udagram-api-user
             docker build -t $DOCKERHUB_USERNAME/udagram-api-feed:${CIRCLE_SHA1} ./udagram-api-feed
