@@ -23,23 +23,8 @@ import {V0_FEED_MODELS} from './controllers/v0/model.index';
   app.use(bodyParser.json());
 
   // CORS configuration
-  app.use(cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    allowedHeaders: [
-      'Origin', 'X-Requested-With',
-      'Content-Type', 'Accept',
-      'X-Access-Token', 'Authorization',
-    ],
-    methods: 'GET,HEAD,OPTIONS,PUT,PATCH,POST,DELETE',
-    preflightContinue: false, // Automatically handles preflight
-  }));
-
+  app.use(cors());
+  
   // Define routes
   app.use('/api/v0/', IndexRouter);
 
