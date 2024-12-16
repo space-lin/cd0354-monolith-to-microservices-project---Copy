@@ -15,10 +15,6 @@ import {V0_FEED_MODELS} from './controllers/v0/model.index';
   const app = express();
   const port = process.env.PORT || 8080;
 
-  // Define allowed origins
-  const allowedOrigins = [
-    'http://aff2e432476004eaaa05153ce7e87f92-2065947421.us-east-1.elb.amazonaws.com',  // Your frontend domain
-  ];
 
   app.use(bodyParser.json());
 
