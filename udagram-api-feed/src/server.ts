@@ -18,8 +18,17 @@ import {V0_FEED_MODELS} from './controllers/v0/model.index';
 
   app.use(bodyParser.json());
 
-  // CORS configuration
-  app.use(cors());
+  // Define allowed origins
+  const allowedOrigins = ['aff2e432476004eaaa05153ce7e87f92-2065947421.us-east-1.elb.amazonaws.com', 'a763c4ab5f15543c5a1a6ecc02a37b4a-1656197018.us-east-1.elb.amazonaws.com'];
+  const corsOptions = {
+    origin: (origin: any, callback: any) => {
+      if (allowedOrigins.includes(origin) || !origin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    }
+  };
   
   // Define routes
   app.use('/api/v0/', IndexRouter);
